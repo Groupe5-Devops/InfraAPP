@@ -1,0 +1,6 @@
+terraform.tfvars
+.tfstate
+.terraform/
+update_terraform.sh
+.json
+inventaire

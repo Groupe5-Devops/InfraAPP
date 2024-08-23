@@ -1,0 +1,297 @@
+---
+- name: Configure Tooling and Services on Ubuntu 22.04
+  hosts: Tooling
+  become: yes
+  tasks:
+    - name: Remove existing Docker and Jenkins repository files and keys
+      command: >
+        rm -f /etc/apt/sources.list.d/docker.list
+        rm -f /etc/apt/sources.list.d/jenkins.list
+        rm -f /usr/share/keyrings/docker-archive-keyring.gpg
+        rm -f /usr/share/keyrings/jenkins-keyring.gpg
+      ignore_errors: yes
+
+    - name: Open necessary ports
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '22'    # SSH
+        - '8080'  # Jenkins
+        - '9090'  # Prometheus
+        - '3000'  # Grafana
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+    - name: Install OpenJDK 11
+      apt:
+        name: openjdk-11-jdk
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        keyring: /usr/share/keyrings/docker-archive-keyring.gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+    - name: Install prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg
+        state: present
+
+    - name: Create Jenkins group
+      group:
+        name: jenkins
+        state: present
+
+    - name: Create Jenkins user
+      user:
+        name: jenkins
+        group: jenkins
+        shell: /bin/bash
+        home: /var/lib/jenkins
+        createhome: yes
+
+    - name: Create necessary directories for Jenkins
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+      loop:
+        - /var/lib/jenkins
+        - /var/cache/jenkins
+        - /var/log/jenkins
+
+    - name: Add Jenkins repository key
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+        mode: '0644'
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+        filename: jenkins
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Ensure Docker service is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Download Docker Compose binary
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64"
+        dest: /tmp/docker-compose
+        mode: '0755'
+        validate_certs: yes
+
+    - name: Move Docker Compose to /usr/local/bin
+      command: mv /tmp/docker-compose /usr/local/bin/docker-compose
+      args:
+        creates: /usr/local/bin/docker-compose
+
+    - name: Ensure Docker Compose is executable
+      file:
+        path: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Verify Docker Compose installation
+      command: docker-compose --version
+      register: docker_compose_version
+      failed_when: docker_compose_version.rc != 0
+      changed_when: false
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Ensure Jenkins service is running
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+
+    - name: Install Prometheus
+      block:
+        - name: Download Prometheus
+          get_url:
+            url: https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz
+            dest: /tmp/prometheus.tar.gz
+
+        - name: Extract Prometheus
+          unarchive:
+            src: /tmp/prometheus.tar.gz
+            dest: /opt
+            remote_src: yes
+
+        - name: Create Prometheus user
+          user:
+            name: prometheus
+            system: yes
+
+        - name: Create Prometheus service file
+          copy:
+            content: |
+              [Unit]
+              Description=Prometheus
+              Wants=network-online.target
+              After=network-online.target
+
+              [Service]
+              User=prometheus
+              Group=prometheus
+              Type=simple
+              ExecStart=/opt/prometheus-2.37.0.linux-amd64/prometheus \
+                --config.file=/opt/prometheus-2.37.0.linux-amd64/prometheus.yml \
+                --storage.tsdb.path=/opt/prometheus-2.37.0.linux-amd64/data \
+                --web.console.templates=/opt/prometheus-2.37.0.linux-amd64/consoles \
+                --web.console.libraries=/opt/prometheus-2.37.0.linux-amd64/console_libraries
+
+              [Install]
+              WantedBy=multi-user.target
+            dest: /etc/systemd/system/prometheus.service
+
+        - name: Ensure Prometheus directories have correct permissions
+          file:
+            path: "{{ item }}"
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+            recurse: yes
+          loop:
+            - /opt/prometheus-2.37.0.linux-amd64
+            - /opt/prometheus-2.37.0.linux-amd64/data
+
+        - name: Start Prometheus service
+          systemd:
+            name: prometheus
+            state: started
+            enabled: yes
+            daemon_reload: yes
+
+    - name: Install Grafana
+      block:
+        - name: Add Grafana GPG key
+          apt_key:
+            url: https://packages.grafana.com/gpg.key
+            keyring: /usr/share/keyrings/grafana-keyring.gpg
+            state: present
+
+        - name: Add Grafana repository
+          apt_repository:
+            repo: "deb [signed-by=/usr/share/keyrings/grafana-keyring.gpg] https://packages.grafana.com/oss/deb stable main"
+            state: present
+            filename: grafana
+
+        - name: Install Grafana
+          apt:
+            name: grafana
+            state: present
+
+        - name: Start Grafana service
+          systemd:
+            name: grafana-server
+            state: started
+            enabled: yes
+
+    - name: Check Jenkins status
+      command: systemctl status jenkins
+      register: jenkins_status
+      ignore_errors: yes
+
+    - name: Display Jenkins status
+      debug:
+        var: jenkins_status.stdout_lines
+
+    - name: Check Jenkins logs
+      command: journalctl -xeu jenkins.service
+      register: jenkins_logs
+      ignore_errors: yes
+
+    - name: Display Jenkins logs
+      debug:
+        var: jenkins_logs.stdout_lines
+
+    - name: Check Java version
+      command: java -version
+      register: java_version
+      ignore_errors: yes
+
+    - name: Display Java version
+      debug:
+        var: java_version.stderr_lines
+
+    - name: Check Jenkins port
+      command: netstat -tuln | grep :8080
+      register: jenkins_port
+      ignore_errors: yes
+
+    - name: Display Jenkins port status
+      debug:
+        var: jenkins_port.stdout_lines
+
+    - name: Check Prometheus status
+      command: systemctl status prometheus
+      register: prometheus_status
+      ignore_errors: yes
+
+    - name: Display Prometheus status
+      debug:
+        var: prometheus_status.stdout_lines
+
+    - name: Check Prometheus logs
+      command: journalctl -xeu prometheus.service
+      register: prometheus_logs
+      ignore_errors: yes
+
+    - name: Display Prometheus logs
+      debug:
+        var: prometheus_logs.stdout_lines
+
+    - name: Check Prometheus port
+      command: netstat -tuln | grep :9090
+      register: prometheus_port
+      ignore_errors: yes
+
+    - name: Display Prometheus port status
+      debug:
+        var: prometheus_port.stdout_lines
+
+    - name: Check Java version
+      command: java -version
+      register: java_version
+      ignore_errors: yes
+
+    - name: Display Java version
+      debug:
+        var: java_version.stderr_lines
