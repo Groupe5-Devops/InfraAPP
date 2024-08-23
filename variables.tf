@@ -1,13 +1,11 @@
 variable "gcp_project" {
   description = "GCP Project ID"
-  type        = string
-  default     = "citric-period-433211-i6"
+  type        = string  
 }
 
 variable "gcp_region" {
   description = "GCP Region"
   type        = string
-  default     = "us-central1"
 }
 
 variable "vm_count" {
@@ -31,5 +29,4 @@ variable "vm_os_image" {
 variable "credentials_file" {
   description = "Path to the service account key file"
   type        = string
-  default     = "./citric-period-433211-i6-99010435d1d3.json"
 }
