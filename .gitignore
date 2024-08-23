@@ -1,6 +1,7 @@
 terraform.tfvars
-*.tfstate
+*.tfstate*
 .terraform/
 update_terraform.sh
 *.json
 inventaire
+install_ansible.sh
