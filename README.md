@@ -28,7 +28,7 @@ Créer deux instances Compute Engine sur Google Cloud Platform (GCP) en utilisan
 - Copiez le fichier JSON de clé GCP dans le répertoire Terraform
 - Modifiez le fichier de variables Terraform pour pointer vers votre fichier JSON :
   ```
-  # Dans terraform.tfvars ou variables.tf
+  # Dans terraform.tfvars
   gcp_credentials_file = "chemin/vers/votre-fichier-gcp.json"
   ```
 - Initialisez Terraform :
