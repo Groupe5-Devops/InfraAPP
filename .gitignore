@@ -1,6 +1,6 @@
 terraform.tfvars
-.tfstate
+*.tfstate
 .terraform/
 update_terraform.sh
-.json
+*.json
 inventaire
