@@ -81,8 +81,6 @@ resource "google_compute_instance" "vm" {
     }
   }
   
-  metadata_startup_script = file("install_ansible.sh")
-
   metadata = {
     ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
   }
