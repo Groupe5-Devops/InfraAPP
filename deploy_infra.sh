@@ -6,6 +6,10 @@ run_command() {
     eval $1
 }
 
+# Détecter le chemin du répertoire utilisateur
+USER_HOME=$(eval echo ~$USER)
+SSH_KEY_PATH="$USER_HOME/.ssh/id_rsa"
+
 # Initialisation de Terraform
 run_command "terraform init"
 
@@ -18,21 +22,17 @@ run_command "terraform apply -auto-approve tfplan"
 # Generation de l'inventaire et suppression des anciennes cles SSH
 run_command "./generate_inventaire_delete_ssholdips.sh"
 
-# Creer un fichier de configuration SSH temporaire
-SSH_CONFIG_FILE=$(mktemp)
-cat << EOF > $SSH_CONFIG_FILE
-Host *
-    StrictHostKeyChecking no
-    UserKnownHostsFile /dev/null
-EOF
+# Attendre que les instances soient prêtes (ajustez le temps si nécessaire)
+echo "Attente de 60 secondes pour que les instances soient pretes..."
+sleep 60
 
-# Deploiement de la VM Tooling avec la configuration SSH personnalisee
-run_command "ANSIBLE_SSH_ARGS='-F $SSH_CONFIG_FILE' ansible-playbook -i inventaire playbookTooling.yml"
+# Définir les options SSH pour Ansible
+ANSIBLE_SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i $SSH_KEY_PATH"
 
-# Deploiement de la VM APP avec la configuration SSH personnalisee
-run_command "ANSIBLE_SSH_ARGS='-F $SSH_CONFIG_FILE' ansible-playbook -i inventaire playbookAPP.yml"
+# Deploiement de la VM Tooling avec les options SSH personnalisees
+run_command "ANSIBLE_SSH_ARGS='$ANSIBLE_SSH_OPTS' ansible-playbook -i inventaire playbookTooling.yml"
 
-# Supprimer le fichier de configuration SSH temporaire
-rm $SSH_CONFIG_FILE
+# Deploiement de la VM APP avec les options SSH personnalisees
+run_command "ANSIBLE_SSH_ARGS='$ANSIBLE_SSH_OPTS' ansible-playbook -i inventaire playbookAPP.yml"
 
 echo "Deploiement Done."

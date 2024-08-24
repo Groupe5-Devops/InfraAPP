@@ -57,8 +57,11 @@
     - name: Enable UFW
       ufw:
         state: enabled
+   
+    - name: Update apt cache
+      apt:
+        update_cache: yes
 
-    # Install OpenJDK 11
     - name: Install OpenJDK 17
       apt:
         name: openjdk-17-jdk
