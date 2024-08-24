@@ -25,9 +25,12 @@ cd InfraAPP
 
 2. **Configurer Terraform**
 - Copiez le fichier JSON de clé GCP dans le répertoire Terraform
-- Modifiez `terraform.tfvars`:
+- Creer un fichier `terraform.tfvars` avec :
   ```
+  gcp_project            = "id_project"
+  gcp_region             = "exemple_us-central1"
   gcp_credentials_file = "chemin/vers/votre-fichier-gcp.json"
+
   ```
 
 3. **Exécuter le script de déploiement**
