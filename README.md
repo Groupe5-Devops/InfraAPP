@@ -19,13 +19,14 @@ Déployer deux instances Compute Engine sur Google Cloud Platform (GCP) en utili
 ## Installation
 
 1. **Cloner le dépôt**
-
-git clone <url-du-dépôt>
-cd InfraAPP
-
+```
+  git clone <url-du-dépôt>
+  cd InfraAPP
+```
 2. **Configurer Terraform**
 - Copiez le fichier JSON de clé GCP dans le répertoire Terraform
 - Creer un fichier `terraform.tfvars` avec :
+
   ```
   gcp_project            = "id_project"
   gcp_region             = "exemple_us-central1"
@@ -34,9 +35,11 @@ cd InfraAPP
   ```
 
 3. **Exécuter le script de déploiement**
-
+```
 chmod +x deploy_infra.sh
 ./deploy_infra.sh
+
+```
 
 ## Étapes de déploiement
 
