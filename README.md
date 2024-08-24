@@ -31,47 +31,42 @@ Créer deux instances Compute Engine sur Google Cloud Platform (GCP) en utilisan
   # Dans terraform.tfvars
   gcp_credentials_file = "chemin/vers/votre-fichier-gcp.json"
   ```
-- Initialisez Terraform :
-  ```
-  terraform init
-  ```
-- Examinez et modifiez `terraform.tfvars` si nécessaire
-- Planifiez l'infrastructure :
-  ```
-  terraform plan
-  ```
-- Appliquez la configuration Terraform :
-  ```
-  terraform apply
-  ```
+4. **Exécuter le Script de Déploiement**
+   Le script **deploy_infra.sh** automatise l'ensemble du processus de déploiement, y compris l'initialisation de Terraform, l'application de la configuration, la génération de l'inventaire et le déploiement des VMs avec Ansible. Utilisez-le comme suit :
+   1. **Rendre le Script Exécutable (si nécessaire)** :
+        
+        chmod +x deploy_infra.sh
 
-4. **Générer l'inventaire**
-- Exécutez le script de génération d'inventaire :
-  ```
-  ./generate_inventaire_delete_ssholdips.sh
-  ```
-Ce script créera un fichier `inventaire` et supprimera les anciennes clés SSH.
+   2. **Exécuter le Script** : 
+        
+        ./deploy_infra.sh
 
-5. **Déployer la VM Tooling**
-- Exécutez le playbook Ansible pour la VM Tooling :
-  ```
-  ansible-playbook -i inventaire playbookTooling.yml
-  ```
-Cela installera et configurera Docker, Docker Compose, Jenkins, Prometheus et Grafana sur la VM Tooling.
+  Le script deploy_infra.sh effectue les opérations suivantes :
 
-6. **Déployer la VM APP**
-- Exécutez le playbook Ansible pour la VM APP :
-  ```
-  ansible-playbook -i inventaire playbookAPP.yml
-  ```
-Cela installera Minikube et ses dépendances sur la VM APP.
+      - Initialisation de Terraform : terraform init
 
-7. **Vérifier les installations**
+      - Planification de l'Infrastructure : terraform plan -out=tfplan
+
+      - Application de la Configuration Terraform : terraform apply -auto-approve tfplan
+
+      - Génération de l'Inventaire : ./generate_inventaire_delete_ssholdips.sh
+
+      - Création d'un Fichier de Configuration SSH Temporaire : Création et suppression automatique d'un fichier de configuration SSH temporaire pour les playbooks Ansible.
+      
+      - Déploiement des VMs :
+            - VM Tooling : Installation et configuration de Docker, Docker Compose, Jenkins, Prometheus et Grafana.
+                           ansible-playbook -i inventaire playbookTooling.yml
+            
+            - VM APP : Installation de Minikube et de ses dépendances.
+                           ansible-playbook -i inventaire playbookAPP.yml
+
+  ```
+5. **Vérifier les installations**
 - Connectez-vous en SSH à chaque VM pour vérifier les installations :
   - VM Tooling : Vérifiez Docker, Jenkins (port 8080), Prometheus (port 9090) et Grafana (port 3000)
   - VM APP : Vérifiez l'installation de Minikube
 
-8. **Nettoyage (Optionnel)**
+6. **Nettoyage (Optionnel)**
 - Pour détruire l'infrastructure lorsqu'elle n'est plus nécessaire :
   ```
   terraform destroy

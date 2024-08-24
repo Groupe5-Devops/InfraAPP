@@ -1,25 +1,21 @@
 ---
-- name: Install Minikube on VM APP
+- name: Install Minikube on Ubuntu 22.04 VM APP
   hosts: APP
   become: yes
-  vars:
-    minikube_version: "v1.33.1"
+
   tasks:
-    - name: Update package cache
+    - name: Update apt cache
       apt:
         update_cache: yes
-        cache_valid_time: 3600
 
     - name: Install required packages
       apt:
         name:
-          - curl
-          - socat
-          - conntrack
           - apt-transport-https
           - ca-certificates
-          - gnupg
-          - lsb-release
+          - curl
+          - gnupg-agent
+          - software-properties-common
         state: present
 
     - name: Add Docker GPG key
@@ -29,7 +25,7 @@
 
     - name: Add Docker repository
       apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
         state: present
 
     - name: Install Docker
@@ -37,57 +33,57 @@
         name: docker-ce
         state: present
 
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
-
     - name: Add current user to docker group
       user:
         name: "{{ ansible_user }}"
         groups: docker
         append: yes
 
+    - name: Restart Docker service
+      systemd:
+        name: docker
+        state: restarted
+
+    - name: Wait for Docker permissions to take effect
+      pause:
+        seconds: 10
+
     - name: Download Minikube binary
       get_url:
-        url: "https://storage.googleapis.com/minikube/releases/{{ minikube_version }}/minikube-linux-amd64"
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
         dest: /usr/local/bin/minikube
         mode: '0755'
 
-    - name: Retrieve kubectl version
-      shell: curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt
-      register: kubectl_version
-      changed_when: false
-
     - name: Download kubectl binary
       get_url:
-        url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubectl_version.stdout | trim }}/bin/linux/amd64/kubectl"
+        url: https://dl.k8s.io/release/v1.27.0/bin/linux/amd64/kubectl
         dest: /usr/local/bin/kubectl
         mode: '0755'
 
-    - name: Set up Minikube configuration
-      become: no
-      command: minikube config set driver docker
-      environment:
-        PATH: "{{ ansible_env.PATH }}:/usr/local/bin"
+    - name: Create .kube directory in the specified user's home
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        mode: '0755'
+      become: yes
+      become_user: "{{ ansible_user }}"
 
     - name: Start Minikube
-      become: no
       command: minikube start --driver=docker
-      environment:
-        PATH: "{{ ansible_env.PATH }}:/usr/local/bin"
-      register: minikube_start
-      changed_when: minikube_start.rc == 0
-      failed_when: 
-        - minikube_start.rc != 0
-        - "'PROVIDER_DOCKER_NEWGRP' not in minikube_start.stderr"
-
-    - name: Wait for Minikube to be ready
       become: no
+      register: minikube_start
+      ignore_errors: yes
+
+    - name: Enable ingress addon
+      command: minikube addons enable ingress
+      become: no
+      when: minikube_start is succeeded
+
+    - name: Display Minikube status
       command: minikube status
+      become: no
       register: minikube_status
-      until: "'Running' in minikube_status.stdout"
-      retries: 10
-      delay: 30
-      changed_when: false
+
+    - name: Debug Minikube status
+      debug:
+        var: minikube_status.stdout_lines

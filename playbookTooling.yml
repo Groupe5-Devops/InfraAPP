@@ -3,14 +3,46 @@
   hosts: Tooling
   become: yes
   tasks:
+    # Cleanup existing configurations
     - name: Remove existing Docker and Jenkins repository files and keys
-      command: >
-        rm -f /etc/apt/sources.list.d/docker.list
-        rm -f /etc/apt/sources.list.d/jenkins.list
-        rm -f /usr/share/keyrings/docker-archive-keyring.gpg
-        rm -f /usr/share/keyrings/jenkins-keyring.gpg
-      ignore_errors: yes
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/docker.list
+        - /etc/apt/sources.list.d/jenkins.list
+        - /etc/apt/sources.list.d/download_docker_com_linux_ubuntu.list
+        - /usr/share/keyrings/docker-archive-keyring.gpg
+        - /usr/share/keyrings/jenkins-keyring.gpg
+        - /usr/share/keyrings/jenkins-keyring.asc
+      ignore_errors: no
 
+    # Verification of removals
+    - name: Verify Docker repository file removal
+      stat:
+        path: /etc/apt/sources.list.d/docker.list
+      register: docker_list_stat
+      failed_when: docker_list_stat.stat.exists
+
+    - name: Verify Docker GPG key file removal
+      stat:
+        path: /usr/share/keyrings/docker-archive-keyring.gpg
+      register: docker_key_stat
+      failed_when: docker_key_stat.stat.exists
+
+    - name: Verify Jenkins repository file removal
+      stat:
+        path: /etc/apt/sources.list.d/jenkins.list
+      register: jenkins_list_stat
+      failed_when: jenkins_list_stat.stat.exists
+
+    - name: Verify Jenkins GPG key file removal
+      stat:
+        path: /usr/share/keyrings/jenkins-keyring.gpg
+      register: jenkins_key_stat
+      failed_when: jenkins_key_stat.stat.exists
+
+    # Configure firewall ports
     - name: Open necessary ports
       ufw:
         rule: allow
@@ -26,11 +58,13 @@
       ufw:
         state: enabled
 
-    - name: Install OpenJDK 11
+    # Install OpenJDK 11
+    - name: Install OpenJDK 17
       apt:
-        name: openjdk-11-jdk
+        name: openjdk-17-jdk
         state: present
 
+    # Configure Docker
     - name: Add Docker GPG key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
@@ -42,7 +76,8 @@
         repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
         state: present
         filename: docker
-    - name: Install prerequisites
+
+    - name: Install prerequisites for Docker
       apt:
         name:
           - apt-transport-https
@@ -51,43 +86,6 @@
           - software-properties-common
           - gnupg
         state: present
-
-    - name: Create Jenkins group
-      group:
-        name: jenkins
-        state: present
-
-    - name: Create Jenkins user
-      user:
-        name: jenkins
-        group: jenkins
-        shell: /bin/bash
-        home: /var/lib/jenkins
-        createhome: yes
-
-    - name: Create necessary directories for Jenkins
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: jenkins
-        group: jenkins
-        mode: '0755'
-      loop:
-        - /var/lib/jenkins
-        - /var/cache/jenkins
-        - /var/log/jenkins
-
-    - name: Add Jenkins repository key
-      get_url:
-        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
-        dest: /usr/share/keyrings/jenkins-keyring.asc
-        mode: '0644'
-
-    - name: Add Jenkins repository
-      apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
-        state: present
-        filename: jenkins
 
     - name: Update apt cache
       apt:
@@ -130,6 +128,44 @@
       failed_when: docker_compose_version.rc != 0
       changed_when: false
 
+    # Configure Jenkins
+    - name: Create Jenkins group
+      group:
+        name: jenkins
+        state: present
+
+    - name: Create Jenkins user
+      user:
+        name: jenkins
+        group: jenkins
+        shell: /bin/bash
+        home: /var/lib/jenkins
+        createhome: yes
+
+    - name: Create necessary directories for Jenkins
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+      loop:
+        - /var/lib/jenkins
+        - /var/cache/jenkins
+        - /var/log/jenkins
+
+    - name: Add Jenkins repository key
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+        mode: '0644'
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+        filename: jenkins
+
     - name: Install Jenkins
       apt:
         name: jenkins
@@ -141,6 +177,7 @@
         state: started
         enabled: yes
 
+    # Install Prometheus
     - name: Install Prometheus
       block:
         - name: Download Prometheus
@@ -199,6 +236,7 @@
             enabled: yes
             daemon_reload: yes
 
+    # Install Grafana
     - name: Install Grafana
       block:
         - name: Add Grafana GPG key
@@ -224,6 +262,7 @@
             state: started
             enabled: yes
 
+    # Various checks
     - name: Check Jenkins status
       command: systemctl status jenkins
       register: jenkins_status
@@ -241,57 +280,3 @@
     - name: Display Jenkins logs
       debug:
         var: jenkins_logs.stdout_lines
-
-    - name: Check Java version
-      command: java -version
-      register: java_version
-      ignore_errors: yes
-
-    - name: Display Java version
-      debug:
-        var: java_version.stderr_lines
-
-    - name: Check Jenkins port
-      command: netstat -tuln | grep :8080
-      register: jenkins_port
-      ignore_errors: yes
-
-    - name: Display Jenkins port status
-      debug:
-        var: jenkins_port.stdout_lines
-
-    - name: Check Prometheus status
-      command: systemctl status prometheus
-      register: prometheus_status
-      ignore_errors: yes
-
-    - name: Display Prometheus status
-      debug:
-        var: prometheus_status.stdout_lines
-
-    - name: Check Prometheus logs
-      command: journalctl -xeu prometheus.service
-      register: prometheus_logs
-      ignore_errors: yes
-
-    - name: Display Prometheus logs
-      debug:
-        var: prometheus_logs.stdout_lines
-
-    - name: Check Prometheus port
-      command: netstat -tuln | grep :9090
-      register: prometheus_port
-      ignore_errors: yes
-
-    - name: Display Prometheus port status
-      debug:
-        var: prometheus_port.stdout_lines
-
-    - name: Check Java version
-      command: java -version
-      register: java_version
-      ignore_errors: yes
-
-    - name: Display Java version
-      debug:
-        var: java_version.stderr_lines

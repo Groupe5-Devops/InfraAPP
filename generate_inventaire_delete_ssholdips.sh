@@ -11,8 +11,8 @@ SSH_KEY_PATH="$USER_HOME/.ssh/id_rsa"
 # Vérifier si jq est installé
 if ! command -v jq &> /dev/null; then
   echo "jq n'est pas installé. Installation en cours..."
-  sudo apt-get update
-  sudo apt-get install -y jq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 fi
 
 # Obtenir les adresses IP des instances au format JSON
@@ -38,10 +38,10 @@ echo "${IP_ARRAY[1]} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_
 
 echo "Fichier d'inventaire généré : $HOSTS_FILE"
 
-# Supprimer les anciennes clés SSH pour chaque IP
+# Supprimer les anciennes clés SSH pour chaque IP sans demander de confirmation
 for IP in "${IP_ARRAY[@]}"; do
   echo "Suppression de l'ancienne clé SSH pour $IP"
-  sudo ssh-keygen -f "/root/.ssh/known_hosts" -R "$IP"
+  ssh-keygen -R "$IP" -f "$USER_HOME/.ssh/known_hosts" 2>/dev/null
 done
 
 echo "Toutes les anciennes clés SSH ont été supprimées."
