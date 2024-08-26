@@ -4,6 +4,17 @@ provider "google" {
   credentials = file(var.credentials_file)
 }
 
+# Création du bucket GCS pour le stockage de l'état Terraform
+resource "google_storage_bucket" "terraform_state" {
+  name          = "infra-bucket-terraform-state"
+  location      = var.gcp_region
+  force_destroy = true
+  
+  versioning {
+    enabled = true
+  }
+}
+
 # Crée un réseau VPC
 resource "google_compute_network" "vm_network" {
   name = "vm-network"
@@ -16,27 +27,23 @@ resource "google_compute_subnetwork" "vm_subnet" {
   network       = google_compute_network.vm_network.name
 }
 
-# Crée une règle de pare-feu pour autoriser le trafic SSH
-resource "google_compute_firewall" "vm_firewall_ssh" {
-  name    = "vm-firewall-ssh"
+# Crée une règle de pare-feu pour autoriser tout le trafic
+resource "google_compute_firewall" "allow_all" {
+  name    = "allow-all"
   network = google_compute_network.vm_network.name
 
   allow {
     protocol = "tcp"
-    ports    = ["22"]
+    ports    = ["0-65535"]
   }
 
-  source_ranges = ["0.0.0.0/0"]
-}
-
-# Crée une règle de pare-feu pour autoriser le trafic sur les ports 8080, 9090 et 3000
-resource "google_compute_firewall" "vm_firewall_ports" {
-  name    = "vm-firewall-ports"
-  network = google_compute_network.vm_network.name
+  allow {
+    protocol = "udp"
+    ports    = ["0-65535"]
+  }
 
   allow {
-    protocol = "tcp"
-    ports    = ["8080", "9090", "3000"]
+    protocol = "icmp"
   }
 
   source_ranges = ["0.0.0.0/0"]
@@ -49,22 +56,13 @@ resource "google_compute_address" "vm_ip" {
   region = var.gcp_region
 }
 
-# Crée un disque persistant de 40 Go pour chaque instance
-#resource "google_compute_disk" "vm_disk" {
-#  count  = var.vm_count
-#  name   = "vm-disk-${count.index + 1}"
-#  size   = 40
-#  type   = "pd-standard" # Vous pouvez aussi utiliser "pd-ssd" pour SSD
-#  zone   = "${var.gcp_region}-a"
-#}
-
 # Crée des machines virtuelles
 resource "google_compute_instance" "vm" {
   count        = var.vm_count
   name         = "vm-${count.index + 1}"
   machine_type = var.vm_machine_type
   zone         = "${var.gcp_region}-a"
-
+  
   boot_disk {
     initialize_params {
       image = var.vm_os_image
@@ -72,7 +70,7 @@ resource "google_compute_instance" "vm" {
       type  = "pd-standard"
     }
   }
-
+  
   network_interface {
     network    = google_compute_network.vm_network.name
     subnetwork = google_compute_subnetwork.vm_subnet.name
@@ -81,11 +79,24 @@ resource "google_compute_instance" "vm" {
     }
   }
   
-  metadata = {
-    ssh-keys = "ubuntu:${file("~/.ssh/id_rsa.pub")}"
-  }
+   metadata = {
+    "ssh-keys" = <<EOF
+       ubuntu:${file("~/.ssh/id_rsa.pub")}
+       sisyphus:${file("~/.ssh/ouss_id_rsa.pub")}
+       ikram:${file("~/.ssh/ik_id_rsa.pub")}
+       EOF
+}
+  
+  # Assignation des tags appropriés
+  tags = ["vm", "vm-${count.index + 1}"]
+}
 
-  tags = ["vm"]
+# Création du dépôt Artifact Registry
+resource "google_artifact_registry_repository" "appmanagercr" {
+  location      = "us-central1"
+  repository_id = "appmanagercr"
+  description   = "Docker repository for AppManagerServer"
+  format        = "DOCKER"
 }
 
 # Output les IPs statiques des vms
