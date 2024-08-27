@@ -7,7 +7,7 @@ Infrastructure as Code (App-ManagerServer)
 Déployer deux instances Compute Engine sur Google Cloud Platform (GCP) en utilisant Terraform :
 
 1. **VM1 (Tooling)** : Docker, Docker Compose, Jenkins,Ansible et Terraform.
-2. **VM2 (APP)** : Microk8s et ses dépendances , Prometheus et Grafana.
+2. **VM2 (APP)** : Microk8s et ses dépendances
 
 ## Prérequis
 
@@ -49,19 +49,19 @@ Le script `deploy_infra.sh` effectue automatiquement les opérations suivantes :
 2. Planification de l'infrastructure
 3. Application de la configuration Terraform
 4. Génération de l'inventaire Ansible
-5. Configuration SSH temporaire
+5. Configuration SSH.
 6. Déploiement des VMs avec Ansible:
-- VM Tooling : Docker, Docker Compose, Jenkins, Prometheus, Grafana
-- VM APP : Minikube et dépendances
+- VM Tooling : Docker, Docker Compose, Jenkins,Ansible et Terraform.
+- VM APP : Microk8s et dépendances.
 
-## Vérification
+## Ports ouverts sur le firewall GCP
 
 - Connectez-vous en SSH à chaque VM pour vérifier les installations
 
 - Ports à vérifier sur VM Tooling:
 - Jenkins: 8080
 
-- Ports à vérifier sur VM APP:
+- Ports à ouvrir sur VM APP:
 
 - Prometheus: 9090
 - Grafana: 3000

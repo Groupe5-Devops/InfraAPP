@@ -26,7 +26,7 @@ IP_ARRAY=($IP_ADDRESSES)
 
 # Vérifiez le nombre d'IP extraites
 if [ ${#IP_ARRAY[@]} -lt 2 ]; then
-  echo "Erreur : Pas assez d'adresses IP trouvées dans le fichier JSON."
+  echo "Erreur : Pas assez d'adresses IP trouvees dans le fichier JSON."
   exit 1
 fi
 
@@ -36,12 +36,12 @@ echo "${IP_ARRAY[0]} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_
 echo "[APP]" >> $HOSTS_FILE
 echo "${IP_ARRAY[1]} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
 
-echo "Fichier d'inventaire généré : $HOSTS_FILE"
+echo "Fichier d'inventaire genere : $HOSTS_FILE"
 
 # Supprimer les anciennes clés SSH pour chaque IP sans demander de confirmation
 for IP in "${IP_ARRAY[@]}"; do
-  echo "Suppression de l'ancienne clé SSH pour $IP"
+  echo "Suppression de l'ancienne cle SSH pour $IP"
   ssh-keygen -R "$IP" -f "$USER_HOME/.ssh/known_hosts" 2>/dev/null
 done
 
-echo "Toutes les anciennes clés SSH ont été supprimées."
+echo "Toutes les anciennes cles SSH ont ete supprimees."

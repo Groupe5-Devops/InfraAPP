@@ -1,7 +1,7 @@
 terraform {
   backend "gcs" {
-    bucket          = "infra-bucket-terraform-state"
+    bucket          = "infrasimul-bucket-terraform-state"
     prefix          = "terraform/state"
-    credentials     = "./citric-period-433211-i6-99010435d1d3.json"  # Remplacez par le chemin de votre clé JSON
+    credentials     = "./keen-ally-433123-d4-931a055f940d.json"  # Remplacez par le chemin de votre clé JSON
   }
 }

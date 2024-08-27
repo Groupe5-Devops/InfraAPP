@@ -6,7 +6,7 @@ provider "google" {
 
 # Création du bucket GCS pour le stockage de l'état Terraform
 resource "google_storage_bucket" "terraform_state" {
-  name          = "infra-bucket-terraform-state"
+  name          = "infrasimul-bucket-terraform-state"
   location      = var.gcp_region
   force_destroy = true
   
