@@ -27,6 +27,10 @@ TF_OUTPUT_JSON_FILE="terraform_output.json"
 USER_HOME=$(eval echo ~$USER)
 SSH_KEY_PATH="$USER_HOME/.ssh/id_rsa"
 
+# Génerer dynamiqument un metadata pour les SSH-KEYS sur les VMs
+
+run_command "./generate_ssh_keys.sh"
+
 # Initialisation de Terraform
 run_command "terraform init"
 

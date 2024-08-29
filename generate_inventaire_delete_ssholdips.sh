@@ -7,6 +7,9 @@ TF_OUTPUT_JSON_FILE="terraform_output.json"
 # Détecter le chemin du répertoire utilisateur
 USER_HOME=$(eval echo ~$USER)
 SSH_KEY_PATH="$USER_HOME/.ssh/id_rsa"
+SSH_KEY_PATH_PUB="$USER_HOME/.ssh/id_rsa.pub"
+USER_INFO=$(awk '{print $NF}' "$SSH_KEY_PATH_PUB")
+USERNAME=$(echo "$USER_INFO" | cut -d'@' -f1)
 
 # Vérifier si jq est installé
 if ! command -v jq &> /dev/null; then
@@ -32,9 +35,9 @@ fi
 
 # Générer le fichier d'inventaire
 echo "[Tooling]" > $HOSTS_FILE
-echo "${IP_ARRAY[0]} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
+echo "${IP_ARRAY[0]} ansible_user=${USERNAME} ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
 echo "[APP]" >> $HOSTS_FILE
-echo "${IP_ARRAY[1]} ansible_user=ubuntu ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
+echo "${IP_ARRAY[1]} ansible_user=${USERNAME} ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
 
 echo "Fichier d'inventaire genere : $HOSTS_FILE"
 

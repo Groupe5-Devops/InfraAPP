@@ -6,7 +6,7 @@ provider "google" {
 
 # Création du bucket GCS pour le stockage de l'état Terraform
 resource "google_storage_bucket" "terraform_state" {
-  name          = "infrasimul-bucket-terraform-state"
+  name          = "inframarwan-bucket-terraform-state"
   location      = var.gcp_region
   force_destroy = true
   
@@ -56,6 +56,11 @@ resource "google_compute_address" "vm_ip" {
   region = var.gcp_region
 }
 
+# Lire le contenu du fichier généré
+data "local_file" "ssh_keys_file" {
+  filename    = "${path.module}/generated_ssh_keys.txt"
+}
+
 # Crée des machines virtuelles
 resource "google_compute_instance" "vm" {
   count        = var.vm_count
@@ -79,13 +84,11 @@ resource "google_compute_instance" "vm" {
     }
   }
   
-   metadata = {
+  metadata = {
     "ssh-keys" = <<EOF
-       ubuntu:${file("~/.ssh/id_rsa.pub")}
-       sisyphus:${file("~/.ssh/ouss_id_rsa.pub")}
-       ikram:${file("~/.ssh/ik_id_rsa.pub")}
-       EOF
-}
+${data.local_file.ssh_keys_file.content}
+EOF
+  }
   
   # Assignation des tags appropriés
   tags = ["vm", "vm-${count.index + 1}"]

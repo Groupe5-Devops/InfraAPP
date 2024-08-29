@@ -10,7 +10,7 @@ Déployer deux instances Compute Engine sur Google Cloud Platform (GCP) en utili
 2. **VM2 (APP)** : Microk8s et ses dépendances
 
 ## Prérequis
-- Git installé.
+
 - Terraform installé
 - Compte GCP configuré avec un projet actif
 - Fichier JSON de clé de compte de service GCP
