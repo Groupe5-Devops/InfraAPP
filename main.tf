@@ -6,7 +6,7 @@ provider "google" {
 
 # Création du bucket GCS pour la sauvegarde de la base de données MySQL
 resource "google_storage_bucket" "mysql_backup" {
-  name          = "inframarwan-mysql-backup-bucket"
+  name          = "infra-mysql-backup-bucket"
   location      = var.gcp_region
   force_destroy = true
 

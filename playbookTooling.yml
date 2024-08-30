@@ -51,6 +51,8 @@
       loop:
         - '22'    # SSH
         - '8080'  # Jenkins
+        - '9090'  # Prometheus
+        - '3000'  # Grafana
 
     - name: Enable UFW
       ufw:
@@ -178,44 +180,90 @@
         state: started
         enabled: yes
 
-    # Install Ansible
-    - name: Install Ansible
-      apt:
-        name: ansible
-        state: present
+    # Install Prometheus
+    - name: Install Prometheus
+      block:
+        - name: Download Prometheus
+          get_url:
+            url: https://github.com/prometheus/prometheus/releases/download/v2.37.0/prometheus-2.37.0.linux-amd64.tar.gz
+            dest: /tmp/prometheus.tar.gz
 
-    # Install Terraform
-    - name: Install unzip
-      apt:
-        name: unzip
-        state: present
+        - name: Extract Prometheus
+          unarchive:
+            src: /tmp/prometheus.tar.gz
+            dest: /opt
+            remote_src: yes
 
-    - name: Get latest Terraform version
-      uri:
-        url: https://checkpoint-api.hashicorp.com/v1/check/terraform
-        return_content: yes
-      register: terraform_version_check
+        - name: Create Prometheus user
+          user:
+            name: prometheus
+            system: yes
 
-    - name: Set Terraform version fact
-      set_fact:
-        terraform_version: "{{ terraform_version_check.json.current_version }}"
+        - name: Create Prometheus service file
+          copy:
+            content: |
+              [Unit]
+              Description=Prometheus
+              Wants=network-online.target
+              After=network-online.target
 
-    - name: Download Terraform binary
-      get_url:
-        url: "https://releases.hashicorp.com/terraform/{{ terraform_version }}/terraform_{{ terraform_version }}_linux_amd64.zip"
-        dest: /tmp/terraform.zip
+              [Service]
+              User=prometheus
+              Group=prometheus
+              Type=simple
+              ExecStart=/opt/prometheus-2.37.0.linux-amd64/prometheus \
+                --config.file=/opt/prometheus-2.37.0.linux-amd64/prometheus.yml \
+                --storage.tsdb.path=/opt/prometheus-2.37.0.linux-amd64/data \
+                --web.console.templates=/opt/prometheus-2.37.0.linux-amd64/consoles \
+                --web.console.libraries=/opt/prometheus-2.37.0.linux-amd64/console_libraries
 
-    - name: Unzip Terraform binary
-      unarchive:
-        src: /tmp/terraform.zip
-        dest: /usr/local/bin/
-        remote_src: yes
-        mode: '0755'
+              [Install]
+              WantedBy=multi-user.target
+            dest: /etc/systemd/system/prometheus.service
 
-    - name: Clean up Terraform download
-      file:
-        path: /tmp/terraform.zip
-        state: absent
+        - name: Ensure Prometheus directories have correct permissions
+          file:
+            path: "{{ item }}"
+            owner: prometheus
+            group: prometheus
+            mode: '0755'
+            recurse: yes
+          loop:
+            - /opt/prometheus-2.37.0.linux-amd64
+            - /opt/prometheus-2.37.0.linux-amd64/data
+
+        - name: Start Prometheus service
+          systemd:
+            name: prometheus
+            state: started
+            enabled: yes
+            daemon_reload: yes
+
+    # Install Grafana
+    - name: Install Grafana
+      block:
+        - name: Add Grafana GPG key
+          apt_key:
+            url: https://packages.grafana.com/gpg.key
+            keyring: /usr/share/keyrings/grafana-keyring.gpg
+            state: present
+
+        - name: Add Grafana repository
+          apt_repository:
+            repo: "deb [signed-by=/usr/share/keyrings/grafana-keyring.gpg] https://packages.grafana.com/oss/deb stable main"
+            state: present
+            filename: grafana
+
+        - name: Install Grafana
+          apt:
+            name: grafana
+            state: present
+
+        - name: Start Grafana service
+          systemd:
+            name: grafana-server
+            state: started
+            enabled: yes
 
     # Various checks
     - name: Check Jenkins status

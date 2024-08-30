@@ -1,16 +1,8 @@
 ---
-- name: Install and Configure MicroK8s on Ubuntu 22.04 VM APP
+- name: Install Minikube on Ubuntu 22.04 VM APP
   hosts: APP
   become: yes
 
-  vars:
-    microk8s_addons:
-      - dns
-      - ingress
-      - storage
-      - helm
-      - helm3
-      - ha-cluster
   tasks:
     - name: Update apt cache
       apt:
@@ -51,55 +43,24 @@
       systemd:
         name: docker
         state: restarted
-        enabled: yes
 
-    - name: Install MicroK8s
-      snap:
-        name: microk8s
-        state: present
-        classic: yes
+    - name: Wait for Docker permissions to take effect
+      pause:
+        seconds: 10
 
-    - name: Add current user to the microk8s group
-      user:
-        name: "{{ ansible_user }}"
-        groups: microk8s
-        append: yes
+    - name: Download Minikube binary
+      get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: '0755'
 
-    - name: Ensure /var/snap/microk8s/common directory permissions
-      file:
-        path: /var/snap/microk8s/common
-        owner: root
-        group: microk8s
-        mode: '0775'
+    - name: Download kubectl binary
+      get_url:
+        url: https://dl.k8s.io/release/v1.27.0/bin/linux/amd64/kubectl
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
 
-    - name: Start MicroK8s service
-      command: microk8s start
-      become: yes
-
-    - name: Wait for MicroK8s to be ready
-      retries: 10
-      delay: 30
-      command: microk8s status --wait-ready
-      register: microk8s_ready
-      until: microk8s_ready.rc == 0
-
-    - name: Enable necessary MicroK8s addons
-      command: microk8s enable {{ item }}
-      loop: "{{ microk8s_addons }}"
-      become: yes
-      register: enable_addon
-      failed_when: "'non-zero return code' in enable_addon.stderr"
-
-    - name: Display MicroK8s status
-      command: microk8s status
-      become: yes
-      register: microk8s_status
-
-    - name: Debug MicroK8s status
-      debug:
-        var: microk8s_status.stdout_lines
-
-    - name: Ensure .kube directory exists
+    - name: Create .kube directory in the specified user's home
       file:
         path: "/home/{{ ansible_user }}/.kube"
         state: directory
@@ -107,25 +68,22 @@
       become: yes
       become_user: "{{ ansible_user }}"
 
-    - name: Generate MicroK8s kubeconfig
-      command: microk8s config
-      register: microk8s_config
-      changed_when: false
-      become: yes
+    - name: Start Minikube
+      command: minikube start --driver=docker
+      become: no
+      register: minikube_start
+      ignore_errors: yes
 
-    - name: Copy kubeconfig file for MicroK8s to user's home
-      copy:
-        content: "{{ microk8s_config.stdout }}"
-        dest: "/home/{{ ansible_user }}/.kube/config"
-        mode: '0600'
-      become: yes
-      become_user: "{{ ansible_user }}"
+    - name: Enable ingress addon
+      command: minikube addons enable ingress
+      become: no
+      when: minikube_start is succeeded
 
-    - name: Change ownership of .kube directory
-      file:
-        path: "/home/{{ ansible_user }}/.kube"
-        state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
-        recurse: yes
-      become: yes
+    - name: Display Minikube status
+      command: minikube status
+      become: no
+      register: minikube_status
+
+    - name: Debug Minikube status
+      debug:
+        var: minikube_status.stdout_lines
