@@ -1,20 +1,35 @@
 # InfraAPP
 
-Infrastructure as Code (App-ManagerServer)
+Infrastructure as a Code (App-ManagerServer)
 
 ## Objectif
 
-Déployer deux instances Compute Engine sur Google Cloud Platform (GCP) en utilisant Terraform :
+Déploiment sur Google Cloud Platform (GCP) en utilisant Terraform de :
 
-1. **VM1 (Tooling)** : Docker, Docker Compose, Jenkins,Ansible et Terraform.
-2. **VM2 (APP)** : Microk8s et ses dépendances
+1. **VM1 (Tooling)** qui va contenir Docker, Docker Compose, Jenkins,Ansible et Terraform ( outils config Ansible).
+2. **VM2 (APP)** qui contienndra Microk8s et ses dépendances ( outils config Ansible).
+3. Création du dépôt Artifact Registry.
+4. Création du bucket GCS pour la sauvegarde de la base de données MySQL.
 
 ## Prérequis
-
-- Terraform installé
+- Ios ubuntu 22.04
 - Compte GCP configuré avec un projet actif
 - Fichier JSON de clé de compte de service GCP
+- Terraform installé sur la machine locale
 - Ansible installé sur la machine locale
+- Création d'un Bucket de Google Cloud Storage pour le ".tfstate" nommé "infra-bucket-terraform-state".
+    N.B : passer par https://console.cloud.google.com/storage.
+- Générer une paire de clés SSH, vous pouvez utiliser la commande suivante :
+
+     ssh-keygen -t rsa -b 4096 -C "utilisateur@example.com"
+
+      N.B : Respecter impérativement ce format . exemple utilisateur : ubuntu ou votre nom ....
+            Pour ces parametres appuyer sur Entrée
+            
+            Enter file in which to save the key (/home/votre_user/.ssh/id_rsa): 
+            Enter passphrase (empty for no passphrase):
+            Enter same passphrase again:
+
 
 ## Installation
 
@@ -30,11 +45,19 @@ Déployer deux instances Compute Engine sur Google Cloud Platform (GCP) en utili
   ```
   gcp_project            = "id_project"
   gcp_region             = "exemple_us-central1"
-  gcp_credentials_file = "chemin/vers/votre-fichier-gcp.json"
+  gcp_credentials_file = "./chemin/vers/votre-fichier-gcp.json"
 
   ```
-
-3. **Exécuter le script de déploiement**
+- Modifier le fichier backend.tf 
+  
+  ```
+    bucket          = "infra-bucket-terraform-state"
+    prefix          = "terraform/state/stable"
+    credentials     = "./chemin/vers/votre-fichier-gcp.json"
+ 
+  ```
+  
+3. **Exécuter le script de déploiement **
 ```
 chmod +x deploy_infra.sh
 ./deploy_infra.sh
@@ -45,14 +68,29 @@ chmod +x deploy_infra.sh
 
 Le script `deploy_infra.sh` effectue automatiquement les opérations suivantes :
 
+1. Génerer dynamiqument un metadata pour les SSH-KEYS sur les VMs
 1. Initialisation de Terraform
 2. Planification de l'infrastructure
 3. Application de la configuration Terraform
-4. Génération de l'inventaire Ansible
-5. Configuration SSH.
-6. Déploiement des VMs avec Ansible:
+
+4. **Exécuter le script de configuration avec Ansible **
+```
+
+chmod +x install_config.sh
+./install_config.sh
+
+```
+
+Le script `install_config.sh` effectue automatiquement les opérations suivantes :
+
+1. Génération de l'inventaire Ansible
+2. Configuration SSH.
+3. Déploiement des VMs avec Ansible:
 - VM Tooling : Docker, Docker Compose, Jenkins,Ansible et Terraform.
 - VM APP : Microk8s et dépendances.
+
+NB: S'assurer que tous les fichiers .sh sont exécutables.
+
 
 ## Ports ouverts sur le firewall GCP
 

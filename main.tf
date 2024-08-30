@@ -4,11 +4,20 @@ provider "google" {
   credentials = file(var.credentials_file)
 }
 
-# Création du bucket GCS pour le stockage de l'état Terraform
-resource "google_storage_bucket" "terraform_state" {
-  name          = "inframarwan-bucket-terraform-state"
+# Création du bucket GCS pour la sauvegarde de la base de données MySQL
+resource "google_storage_bucket" "mysql_backup" {
+  name          = "inframarwan-mysql-backup-bucket"
   location      = var.gcp_region
   force_destroy = true
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 30
+    }
+  }
   
   versioning {
     enabled = true
