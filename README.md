@@ -68,10 +68,10 @@ chmod +x deploy_infra.sh
 
 Le script `deploy_infra.sh` effectue automatiquement les opérations suivantes :
 
-1. Génerer dynamiqument un metadata pour les SSH-KEYS sur les VMs
-1. Initialisation de Terraform
-2. Planification de l'infrastructure
-3. Application de la configuration Terraform
+  - Génerer dynamiquement un metadata pour les SSH-KEYS sur les VMs
+  - Initialisation de Terraform
+  - Planification de l'infrastructure
+  - Application de la configuration Terraform
 
 4. **Exécuter le script de configuration avec Ansible **
 ```
@@ -86,8 +86,9 @@ Le script `install_config.sh` effectue automatiquement les opérations suivantes
 1. Génération de l'inventaire Ansible
 2. Configuration SSH.
 3. Déploiement des VMs avec Ansible:
-- VM Tooling : Docker, Docker Compose, Jenkins,Ansible et Terraform.
-- VM APP : Microk8s et dépendances.
+
+      - VM Tooling : Docker, Docker Compose, Jenkins,Ansible et Terraform.
+      - VM APP : Microk8s et dépendances.
 
 NB: S'assurer que tous les fichiers .sh sont exécutables.
 
