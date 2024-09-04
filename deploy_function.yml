@@ -1,0 +1,44 @@
+---
+- name: Configurer et mettre  jour la Cloud Function
+  hosts: localhost  # Utilisation de localhost comme hte
+  connection: local
+  gather_facts: no
+
+  vars_files:
+    - vars.yml  # Importer les variables depuis le fichier externe
+
+  tasks:
+    - name: Crer le rpertoire de code de la fonction
+      file:
+        path: "{{ playbook_dir }}/function_code"
+        state: directory
+
+    - name: Copier le code Python de la fonction
+      copy:
+        src: control_vm.py
+        dest: "{{ playbook_dir }}/function_code/main.py"
+
+    - name: Crer le fichier requirements.txt
+      copy:
+        content: |
+          google-auth
+          google-auth-httplib2
+          google-cloud-compute
+        dest: "{{ playbook_dir }}/function_code/requirements.txt"
+
+    - name: Crer l'archive ZIP de la fonction
+      archive:
+        path: 
+          - "{{ playbook_dir }}/function_code/main.py"
+          - "{{ playbook_dir }}/function_code/requirements.txt"
+        dest: "{{ playbook_dir }}/function.zip"
+        format: zip
+
+    - name: Uploader l'archive ZIP vers le bucket GCS
+      google.cloud.gcp_storage_object:
+        bucket: "{{ bucket_name }}"
+        src: "{{ playbook_dir }}/function.zip"
+        dest: "function.zip"
+        project: "{{ gcp_project }}"
+        auth_kind: "serviceaccount"
+        service_account_file: "{{ credentials_file }}"

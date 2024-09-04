@@ -6,3 +6,4 @@ update_terraform.sh
 *.json
 inventaire
 install_ansible.sh
+vars.yml

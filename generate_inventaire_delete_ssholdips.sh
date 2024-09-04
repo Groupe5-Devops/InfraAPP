@@ -38,6 +38,8 @@ echo "[Tooling]" > $HOSTS_FILE
 echo "${IP_ARRAY[0]} ansible_user=${USERNAME} ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
 echo "[APP]" >> $HOSTS_FILE
 echo "${IP_ARRAY[1]} ansible_user=${USERNAME} ansible_ssh_private_key_file=${SSH_KEY_PATH}" >> $HOSTS_FILE
+echo "[local]" >> $HOSTS_FILE
+echo "localhost ansible_connection=local" >> $HOSTS_FILE
 
 echo "Fichier d'inventaire genere : $HOSTS_FILE"
 
